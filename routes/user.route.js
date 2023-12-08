@@ -41,7 +41,7 @@ const verifyToken = (req, res, next) => {
 
 const existUser = async (username, password) => {
     try {
-        const query = 'SELECT * FROM users WHERE username = ? AND password = ?';
+        const query = 'SELECT * FROM user WHERE username = ? AND password = ?';
         const result = await db.execute(query, [username, password]);
 
         return result[0];
@@ -61,7 +61,7 @@ router.post('/signup', async (req, res) => {
         if (data.length > 0) {
             res.status(200).json({ message: 'user already exists!' });
         } else {
-            const query = 'INSERT INTO users (username, password) VALUES (?, ?)';
+            const query = 'INSERT INTO user (username, password) VALUES (?, ?)';
             await db.execute(query, [username, password]);
             res.status(200).json({ message: 'user created successfully' });
         }
@@ -92,7 +92,7 @@ router.post('/login', async (req, res) => {
 
 router.get('/alluser', verifyToken, async (req, res) => {
     try {
-        const query = 'SELECT * FROM users';
+        const query = 'SELECT * FROM user';
         const result = await db.execute(query);
 
         res.status(200).json({ data: result[0] });
