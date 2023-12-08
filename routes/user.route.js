@@ -1,58 +1,105 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const db = require('../db');
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(bodyParser.json());
 
+const generateToken = (user) => {
+    const payload = {
+        username: user.username,
+    };
+    const secretKey = 'abhishek';
+    const options = { expiresIn: '12h' };
+
+    return jwt.sign(payload, secretKey, options);
+};
+
+const verifyToken = (req, res, next) => {
+    try {
+        const token = req.headers.token;
+
+        if (!token) {
+            return res.status(403).json({ message: 'Token is missing' });
+        }
+
+        jwt.verify(token, 'abhishek', (err, decoded) => {
+            if (err) {
+                return res.status(401).json({ message: 'Invalid token' });
+            }
+
+            req.user = decoded;
+            next();
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 const existUser = async (username, password) => {
+    try {
+        const query = 'SELECT * FROM users WHERE username = ? AND password = ?';
+        const result = await db.execute(query, [username, password]);
 
-    const query = 'SELECT * FROM users WHERE username = ? AND password = ?';
-    const result = await db.execute(query, [username, password]);
-
-    return result[0]
-}
-
+        return result[0];
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+};
 
 router.post('/signup', async (req, res) => {
-    const { username, password } = req.body;
 
-    const data = await existUser(username, password)
+    try {
+        const { username, password } = req.body;
 
-    if (data.length > 0) {
-        res.status(200).json({ message: 'user already exist!' });
-    }
-    else {
-        const query = 'INSERT INTO users (username, password) VALUES (?, ?)';
-        db.execute(query, [username, password]).catch((err) => {
-            res.status(501).json({ message: err })
-        })
+        const data = await existUser(username, password);
 
-        res.status(200).json({ message: 'user created successfully' });
+        if (data.length > 0) {
+            res.status(200).json({ message: 'user already exists!' });
+        } else {
+            const query = 'INSERT INTO users (username, password) VALUES (?, ?)';
+            await db.execute(query, [username, password]);
+            res.status(200).json({ message: 'user created successfully' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+
     }
 });
 
+router.post('/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
 
-router.get('/login', async (req, res) => {
+        const data = await existUser(username, password);
 
-    const { username, password } = req.body;
-
-    const data = await existUser(username, password);
-    if (data.length === 0) {
-        res.status(401).json({ message: 'Invalid credentials' });
-    } else {
-        res.json({ message: 'Login successful', data: data });
+        if (data.length === 0) {
+            res.status(401).json({ message: 'Invalid credentials' });
+        } else {
+            const token = generateToken(data[0]);
+            res.json({ message: 'Login successful', token });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
     }
-
 });
 
-router.get('/alluser',async (req, res) => {
-    const query = 'SELECT * FROM users';
-    const result = await db.execute(query)
-    
-    res.status(200).json({ data: result[0] })
-})
+router.get('/alluser', verifyToken, async (req, res) => {
+    try {
+        const query = 'SELECT * FROM users';
+        const result = await db.execute(query);
 
+        res.status(200).json({ data: result[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
 
 module.exports = router;
