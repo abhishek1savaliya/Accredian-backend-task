@@ -28,6 +28,8 @@ router.post('/signup', async (req, res) => {
         db.execute(query, [username, password]).catch((err) => {
             res.status(501).json({ message: err })
         })
+
+        res.status(200).json({ message: 'user created successfully' });
     }
 });
 
