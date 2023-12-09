@@ -1,9 +1,12 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const userRoute = require('./routes/user.route')
+const cors = require('cors');  // Import the cors middleware
+const userRoute = require('./routes/user.route');
 
 const app = express();
 const port = 3000;
+
+app.use(cors()); 
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
