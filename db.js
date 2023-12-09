@@ -24,6 +24,6 @@ pool.promise()
   })
   .catch((err) => {
     console.error('Error checking or creating user table:', err);
-  });
+  })
 
 module.exports = pool.promise();

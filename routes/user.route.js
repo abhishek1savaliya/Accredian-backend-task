@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const db = require('../db');
 const jwt = require('jsonwebtoken');
+const bcrypt = require ('bcrypt');
 
 const router = express.Router();
 router.use(bodyParser.urlencoded({ extended: true }));
@@ -40,11 +41,38 @@ const verifyToken = (req, res, next) => {
 };
 
 const existUser = async (username, password) => {
+   
     try {
-        const query = 'SELECT * FROM user WHERE username = ? AND password = ?';
-        const result = await db.execute(query, [username, password]);
+        const query = 'SELECT * FROM user WHERE username = ?';
+        const result = await db.execute(query, [username]);
 
-        return result[0];
+        if (result[0].length > 0) {
+            const hashedPassword = result[0][0].password;
+            // Compare the provided password with the hashed password
+            const isPasswordValid = await bcrypt.compare(password, hashedPassword);
+
+            if (isPasswordValid) {
+                return result[0];
+            }
+        }
+
+        return [];
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+};
+const alreadyexistUser = async (username) => {
+   
+    try {
+        const query = 'SELECT * FROM user WHERE username = ?';
+        const result = await db.execute(query, [username]);
+
+        if (result[0].length > 0) {
+                return result[0];
+        }
+
+        return [];
     } catch (error) {
         console.error(error);
         throw error;
@@ -52,17 +80,20 @@ const existUser = async (username, password) => {
 };
 
 router.post('/signup', async (req, res) => {
+    let password = req.body.password;
+    let haspass = await bcrypt.hash(password, 10);
+
 
     try {
-        const { username, password } = req.body;
+        const { username } = req.body;
 
-        const data = await existUser(username, password);
-
+        const data = await alreadyexistUser(username);
+    
         if (data.length > 0) {
-            res.status(200).json({ message: 'user already exists!' });
+            res.status(401).json({ message: 'user already exists!' });
         } else {
             const query = 'INSERT INTO user (username, password) VALUES (?, ?)';
-            await db.execute(query, [username, password]);
+            await db.execute(query, [username, haspass]);
             res.status(200).json({ message: 'user created successfully' });
         }
     } catch (error) {
